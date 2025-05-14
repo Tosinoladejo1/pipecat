@@ -1,3 +1,4 @@
+
 #
 # Copyright (c) 2024–2025, Daily
 #
@@ -11,6 +12,7 @@ import sys
 from call_connection_manager import CallConfigManager, SessionManager
 from dotenv import load_dotenv
 from loguru import logger
+from phone_chat_handler import PhoneChatHandler
 
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
@@ -69,9 +71,11 @@ async def main(
             transcription_enabled=True,
         )
     else:
+        logger.warning("Dial-in settings not provided. Using dummy values.") 
         daily_dialin_settings = DailyDialinSettings(
-            call_id=dialin_settings.get("call_id"), call_domain=dialin_settings.get("call_domain")
-        )
+        call_id="fake_call_id",
+        call_domain="fake_domain.daily.co"
+    )
         transport_params = DailyParams(
             api_url=daily_api_url,
             api_key=daily_api_key,
@@ -171,7 +175,10 @@ async def main(
 
     if test_mode:
         logger.debug("Running in test mode (can be tested in Daily Prebuilt)")
-
+        
+    handler = PhoneChatHandler()
+    handler.on_audio_input(b"fake audio")
+ 
     runner = PipelineRunner()
     await runner.run(task)
 
