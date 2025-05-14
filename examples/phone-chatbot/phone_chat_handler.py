@@ -1,40 +1,48 @@
 import time
 import threading
 
+
 class PhoneChatHandler:
     def __init__(self):
-        self.call_start_time = time.time()
-        self.last_speech_time = time.time()
-        self.silence_events = 0
-        self.unanswered_prompts = 0
-        self.max_unanswered = 3
-        self.running = True
+        self.start_time = time.time()
+        self.last_heard = time.time()
+        self.silence_count = 0
+        self.prompt_count = 0
+        self.prompt_limit = 3
+        self.active = True
 
-        self.monitor_thread = threading.Thread(target=self.monitor_silence)
-        self.monitor_thread.start()
+        # Start background thread to monitor silence
+        self._monitor = threading.Thread(target=self._watch_for_silence)
+        self._monitor.daemon = True
+        self._monitor.start()
 
-    def on_audio_input(self, audio):
-        self.last_speech_time = time.time()
+    def on_audio_input(self, audio_data: bytes):
+        """Resets the silence timer when user input is received."""
+        self.last_heard = time.time()
 
-    def monitor_silence(self):
-        while self.running:
+    def _watch_for_silence(self):
+        while self.active:
             time.sleep(2)
-            if time.time() - self.last_speech_time > 10:
-                self.handle_silence()
+            if time.time() - self.last_heard > 10:
+                self._respond_to_silence()
 
-    def handle_silence(self):
-        self.silence_events += 1
-        self.unanswered_prompts += 1
+    def _respond_to_silence(self):
+        self.silence_count += 1
+        self.prompt_count += 1
         print("TTS: Are you still there?")
-        self.last_speech_time = time.time()
-        if self.unanswered_prompts >= self.max_unanswered:
+        self.last_heard = time.time()
+
+        if self.prompt_count >= self.prompt_limit:
             print("TTS: Ending call due to no response.")
             self.end_call()
 
     def end_call(self):
-        self.running = False
-        self.summarize()
+        self.active = False
+        self._log_summary()
 
-    def summarize(self):
-        duration = int(time.time() - self.call_start_time)
-        print(f"\n📞 CALL SUMMARY\n- Duration: {duration}s\n- Silence Events: {self.silence_events}\n- Unanswered: {self.unanswered_prompts}\n")
+    def _log_summary(self):
+        total_duration = int(time.time() - self.start_time)
+        print("\n📞 CALL SUMMARY")
+        print(f"- Duration: {total_duration} seconds")
+        print(f"- Silence Events: {self.silence_count}")
+        print(f"- Unanswered Prompts: {self.prompt_count}")
